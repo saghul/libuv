@@ -862,7 +862,14 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
     /* Initialize the client handle and copy the pipeHandle to the client */
     uv_pipe_connection_init(pipe_client);
     pipe_client->handle = req->pipeHandle;
-    pipe_client->flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
+    pipe_client->flags |= UV_HANDLE_READABLE |
+                          UV_HANDLE_WRITABLE |
+                          UV_HANDLE_PIPECONNECTION;
+
+    /* Copy the pipe name where we are connected */
+    pipe_client->name = uv__malloc(wcslen(server->name) * sizeof(WCHAR));
+    if (pipe_client->name)
+      wcscpy(pipe_client->name, server->name);
 
     /* Prepare the req to pick up a new connection */
     server->pipe.serv.pending_accepts = req->next_pending;
@@ -2054,8 +2061,43 @@ int uv_pipe_getpeername(const uv_pipe_t* handle, char* buffer, size_t* size) {
   if (handle->flags & UV_HANDLE_BOUND)
     return UV_ENOTCONN;
 
-  if (handle->handle != INVALID_HANDLE_VALUE)
+  if (handle->handle != INVALID_HANDLE_VALUE) {
+    if (handle->flags & UV_HANDLE_PIPECONNECTION) {
+      /* return the name in handle->name which was copied in uv_pipe_accept */
+      unsigned int addrlen;
+      addrlen = WideCharToMultiByte(CP_UTF8,
+                                    0,
+                                    handle->name,
+                                    wcslen(handle->name),
+                                    NULL,
+                                    0,
+                                    NULL,
+                                    NULL);
+      if (!addrlen) {
+        *size = 0;
+        return uv_translate_sys_error(GetLastError());
+      } else if (addrlen > *size) {
+        *size = addrlen;
+        return UV_ENOBUFS;
+      }
+      addrlen = WideCharToMultiByte(CP_UTF8,
+                                    0,
+                                    handle->name,
+                                    wcslen(handle->name),
+                                    buffer,
+                                    *size,
+                                    NULL,
+                                    NULL);
+      if (!addrlen) {
+        *size = 0;
+        return uv_translate_sys_error(GetLastError());
+      }
+      return 0;
+    }
+
+    /* in other cases query the kernel for the name */
     return uv__pipe_getname(handle, buffer, size);
+  }
 
   return UV_EBADF;
 }
