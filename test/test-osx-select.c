@@ -72,7 +72,10 @@ TEST_IMPL(osx_select) {
         "feel pretty happy\n";
   for (i = 0, len = strlen(str); i < len; i++) {
     r = ioctl(fd, TIOCSTI, str + i);
-    ASSERT(r == 0);
+    if (r == -1)
+      perror("ioctl");
+    else
+      ASSERT(r == 0);
   }
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
