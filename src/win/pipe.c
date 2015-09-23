@@ -105,6 +105,14 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
 
   uv_req_init(loop, (uv_req_t*) &handle->pipe.conn.ipc_header_write_req);
 
+  if (ipc) {
+    /* Set the PID used for IPC early, if the pipe ends up being used for
+     * cross-process IPC it will be overwritten in uv_spawn.
+     */
+    handle->pipe.conn.ipc_pid = uv_parent_pid();
+    assert(handle->pipe.conn.ipc_pid != -1);
+  }
+
   return 0;
 }
 
@@ -1948,11 +1956,6 @@ int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
 
   uv_pipe_connection_init(pipe);
 
-  if (pipe->ipc) {
-    assert(!(pipe->flags & UV_HANDLE_NON_OVERLAPPED_PIPE));
-    pipe->pipe.conn.ipc_pid = uv_parent_pid();
-    assert(pipe->pipe.conn.ipc_pid != -1);
-  }
   return 0;
 }
 
