@@ -932,3 +932,73 @@ TEST_IMPL(fs_event_error_reporting) {
 }
 
 #endif  /* defined(__APPLE__) */
+
+
+#if defined(_WIN32)
+static void fs_event_success(uv_fs_event_t* handle,
+                             const char* filename,
+                             int events,
+                             int status) {
+  ASSERT(status == 0);
+  ASSERT(events != 0);
+  ASSERT(strlen(filename) > MAX_PATH);
+  fs_event_cb_called++;
+
+  uv_close((uv_handle_t*)handle, close_cb);
+}
+
+
+TEST_IMPL(fs_event_long_path) {
+  uv_loop_t* loop;
+  int r;
+  char long_path1[512];
+  char long_path2[512];
+  char subpath[200];
+  char buffer[512];
+  size_t size;
+
+  loop = uv_default_loop();
+
+  memset(long_path1, 0, sizeof(long_path1));
+  memset(long_path2, 0, sizeof(long_path2));
+
+  create_dir("watch_dir");
+
+  size = sizeof(buffer);
+  r = uv_cwd(buffer, &size);
+  ASSERT(r == 0);
+
+  memset(subpath, 'x', sizeof(subpath));
+  subpath[sizeof(subpath)-1] = '\0';
+
+  sprintf(long_path1, "\\\\?\\%s\\watch_dir\\%s", buffer, subpath);
+  create_dir(long_path1);
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fs_event_success, "watch_dir", UV_FS_EVENT_RECURSIVE);
+  ASSERT(r == 0);
+
+  /* Generate fs events */
+
+  strcat(long_path2, long_path1);
+  strcat(long_path2, "\\");
+  memset(subpath, 'y', sizeof(subpath));
+  subpath[sizeof(subpath)-1] = '\0';
+  strcat(long_path2, subpath);
+  create_dir(long_path2);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  ASSERT(close_cb_called == 1);
+  ASSERT(fs_event_cb_called == 1);
+
+  /* Clean up */
+  remove(long_path2);
+  remove(long_path1);
+  remove("watch_dir");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
