@@ -1283,8 +1283,10 @@ void uv_os_free_passwd(uv_passwd_t* pwd) {
 
   uv__free(pwd->username);
   uv__free(pwd->homedir);
+  uv__free(pwd->gecos);
   pwd->username = NULL;
   pwd->homedir = NULL;
+  pwd->gecos = NULL;
 }
 
 
@@ -1380,6 +1382,15 @@ int uv__getpwuid_r(uv_passwd_t* pwd) {
   }
 
   pwd->shell = NULL;
+  pwd->gecos = uv_malloc(1);
+  if (pwd->gecos == NULL) {
+    uv__free(pwd->homedir);
+    uv__free(pwd->username);
+    return UV_ENOMEM;
+  }
+
+  *pwd->gecos = '\0';
+
   pwd->uid = -1;
   pwd->gid = -1;
 
