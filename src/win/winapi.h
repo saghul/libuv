@@ -4634,6 +4634,27 @@ typedef NTSTATUS (NTAPI *sNtQueryDirectoryFile)
 # define ERROR_MUI_FILE_NOT_LOADED 15105
 #endif
 
+/* from secext.h */
+typedef enum 
+{
+  NameUnknown = 0, 
+  NameFullyQualifiedDN = 1, 
+  NameSamCompatible = 2, 
+  NameDisplay = 3, 
+  NameUniqueId = 6, 
+  NameCanonical = 7, 
+  NameUserPrincipal = 8, 
+  NameCanonicalEx = 9, 
+  NameServicePrincipal = 10, 
+  NameDnsDomain = 12
+} EXTENDED_NAME_FORMAT, *PEXTENDED_NAME_FORMAT;
+
+typedef BOOL (WINAPI *sGetUserNameExW)
+			 (EXTENDED_NAME_FORMAT NameFormat,
+			  LPWSTR lpNameBuffer,
+			  PULONG lpnSize);
+
+			  
 typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
              (HANDLE CompletionPort,
               LPOVERLAPPED_ENTRY lpCompletionPortEntries,
@@ -4706,5 +4727,9 @@ extern sWakeAllConditionVariable pWakeAllConditionVariable;
 extern sWakeConditionVariable pWakeConditionVariable;
 extern sCancelSynchronousIo pCancelSynchronousIo;
 extern sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
+
+
+/* Secur32 function pointers */
+extern sGetUserNameExW pGetUserNameExW;
 
 #endif /* UV_WIN_WINAPI_H_ */

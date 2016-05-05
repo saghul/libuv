@@ -1332,6 +1332,8 @@ int uv__getpwuid_r(uv_passwd_t* pwd) {
   wchar_t username[UNLEN + 1];
   wchar_t path[MAX_PATH];
   DWORD bufsize;
+  wchar_t* gecosbuf;
+  ULONG gecos_size;
   int r;
 
   if (pwd == NULL)
@@ -1381,16 +1383,39 @@ int uv__getpwuid_r(uv_passwd_t* pwd) {
     return r;
   }
 
-  pwd->shell = NULL;
-  pwd->gecos = uv_malloc(1);
-  if (pwd->gecos == NULL) {
-    uv__free(pwd->homedir);
-    uv__free(pwd->username);
-    return UV_ENOMEM;
+  gecos_size = 0;
+  pGetUserNameExW(NameDisplay, NULL, &gecos_size);
+  if (GetLastError() != ERROR_MORE_DATA) {
+	/* we cannot get the display name */
+	pwd->gecos = NULL;
+	goto end;
+  } else {
+    assert(gecos_size > 0);
+    gecosbuf = uv__malloc(sizeof(wchar_t) * gecos_size);
+    if (!gecosbuf) {
+	  pwd->gecos = NULL;
+	  goto end;
+    }
+  
+    if (!pGetUserNameExW(NameDisplay, gecosbuf, &gecos_size)) {
+	  uv__free(gecosbuf);
+	  pwd->gecos = NULL;
+	  goto end;	
+    }
+
+    r = uv__convert_utf16_to_utf8(gecosbuf, &pwd->gecos);
+    uv__free(gecosbuf);
+  
+    if (r != 0) {
+	  uv__free(pwd->gecos);
+	  pwd->gecos = NULL;
+	  goto end;
+    }
   }
 
-  *pwd->gecos = '\0';
-
+end:
+  /* unsupported */
+  pwd->shell = NULL;
   pwd->uid = -1;
   pwd->gid = -1;
 
