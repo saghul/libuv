@@ -49,9 +49,14 @@ sCancelSynchronousIo pCancelSynchronousIo;
 sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
 
 
+/* Secur32 function pointers */
+sGetUserNameExW pGetUserNameExW;
+
+
 void uv_winapi_init() {
   HMODULE ntdll_module;
   HMODULE kernel32_module;
+  HMODULE secur32_module;
 
   ntdll_module = GetModuleHandleA("ntdll.dll");
   if (ntdll_module == NULL) {
@@ -143,4 +148,12 @@ void uv_winapi_init() {
 
   pGetFinalPathNameByHandleW = (sGetFinalPathNameByHandleW)
     GetProcAddress(kernel32_module, "GetFinalPathNameByHandleW");
+
+  secur32_module = LoadLibraryA("secur32.dll");
+  if (secur32_module == NULL) {
+    uv_fatal_error(GetLastError(), "GetModuleHandleA - secur32.dll");
+  }
+
+  pGetUserNameExW = (sGetUserNameExW)
+    GetProcAddress(secur32_module, "GetUserNameExW");
 }
